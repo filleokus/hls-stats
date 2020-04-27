@@ -1,0 +1,3 @@
+/cmd/hls-stats/config.json
+*.txt
+.idea/
