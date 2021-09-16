@@ -1,18 +1,19 @@
-package Listener
+package listener
 
 import (
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/grafov/m3u8"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/grafov/m3u8"
 )
 
 var client = &http.Client{
-	Timeout: time.Second*3,
+	Timeout: time.Second * 3,
 }
 var logger Logger
 
@@ -111,7 +112,6 @@ func downloadURL(url string) (response *http.Response, didFailAndShouldRetry boo
 	logger.SuccessfullyDownloaded(message)
 	return resp, false
 
-
 }
 
 func startStreamingPlaylist(playlistUrl string, bufferSegments int) {
@@ -161,12 +161,12 @@ func fetchPlaylist(playlistUrl string) (*m3u8.MediaPlaylist, bool) {
 
 	playlist, _, err := m3u8.DecodeFrom(resp.Body, true)
 	if err != nil {
-		log.Fatal("Could not decode provided m3u8 for %s: %s", playlistUrl, err)
+		log.Fatalf("Could not decode provided m3u8 for %s: %s", playlistUrl, err)
 	}
 	return playlist.(*m3u8.MediaPlaylist), false
 }
 
-func fetchSegment(playlistUrl string, playlist *m3u8.MediaPlaylist, sequenceId *uint64) (didFailAndShouldRetry bool){
+func fetchSegment(playlistUrl string, playlist *m3u8.MediaPlaylist, sequenceId *uint64) (didFailAndShouldRetry bool) {
 	var segment *m3u8.MediaSegment
 	for _, s := range playlist.Segments {
 		if s == nil {
@@ -217,7 +217,7 @@ func getLatestSegment(playlist *m3u8.MediaPlaylist, bufferSegments int) *m3u8.Me
 
 	// Need to access the latest segment, playlist.Segments.tail is private...
 	var latestSegmentIndex int
-	for index, _ := range playlist.Segments {
+	for index := range playlist.Segments {
 		if playlist.Segments[index+1] == nil {
 			latestSegmentIndex = index
 			break
