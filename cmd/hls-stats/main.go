@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -51,8 +52,11 @@ func main() {
 	}
 
 	fmt.Printf("Starting session with ID: %s\n", sessionID.String())
+	httpClient := &http.Client{
+		Timeout: time.Second * 3,
+	}
 	for _, playlistUrlString := range config.PlaylistUrlStrings {
-		go listener.StartListener(playlistUrlString, config.BufferSegments, logger)
+		go listener.StartListener(playlistUrlString, config.BufferSegments, logger, httpClient)
 	}
 
 	c := make(chan os.Signal)
