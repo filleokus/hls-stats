@@ -1,9 +1,28 @@
 # `hls-stats`
-Small package and example application (`/cmd/hls-stats`) for downloading segments in a `HLS` (`.m3u8`) playlist.
+Small package and two example applications (`/cmd`) for downloading segments in a `HLS` (`.m3u8`) playlist.
 
 Logs failing downloads and duration of segment downloads.
 
-## Example application
+## `load-gen`
+Perform paralell download of segments in playlist to simulate load from real clients
+
+### Usage
+```
+load-gen [options] [url]
+```
+*URL must include protocol and point to a variant-playlist*
+
+**Options:**
+- `buffer`
+  - Number of segments away from live edge to start playback (default 1)
+- `instances`
+   - Number of paralell clients (default 10)
+- `proxy`
+  - HTTP(S) proxy [http://URL:port]
+- `quiet`
+  - Do not print successful downloads
+
+## `hls-stats`
 ### Config
 
 Currently you have to run the binary in the same directory as a `config.json` file with the follwoing structure:
@@ -26,5 +45,4 @@ Currently you have to run the binary in the same directory as a `config.json` fi
 ## Arguments
 - `-influx`: Use Influx for remote logging
 - `-quiet`: Do not print successful downloads
-
 
