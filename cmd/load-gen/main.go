@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,19 +15,19 @@ import (
 )
 
 type Logger struct {
+	quiet bool
 }
 
-var quiet *bool
-var instances *int
-var buffer *int
-
 func main() {
-	var logger = Logger{}
-	quiet = flag.Bool("quiet", false, "Do not print successful downloads")
-	instances = flag.Int("instances", 10, "Number of paralell clients")
-	buffer = flag.Int("buffer", 1, "Number of segments away from live edge to start playback")
+	quiet := flag.Bool("quiet", false, "Do not print successful downloads")
+	instances := flag.Int("instances", 10, "Number of paralell clients")
+	buffer := flag.Int("buffer", 1, "Number of segments away from live edge to start playback")
+	proxyURLString := flag.String("proxy", "", "HTTP(S) proxy [http://URL:port]")
 	flag.Parse()
+
 	playlistURL := flag.Arg(0)
+	var logger = Logger{quiet: *quiet}
+
 	if playlistURL == "" {
 		fmt.Println("Usage: load-gen [options] [url]")
 		fmt.Println("URL must include protocol and point to a variant-playlist")
@@ -32,10 +35,26 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(0)
 	}
-	fmt.Printf("Starting %d session(s)\n", instances)
+
+	var httpClient *http.Client
+	httpClient = &http.Client{
+		Timeout: time.Second * 3,
+	}
+	if *proxyURLString != "" {
+		proxyUrl, err := url.Parse(*proxyURLString)
+		if err != nil {
+			log.Fatal("Invalid proxy URL")
+		}
+		httpClient = &http.Client{
+			Timeout:   time.Second * 3,
+			Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)},
+		}
+	}
+
+	fmt.Printf("Starting %d session(s)\n", *instances)
 	for i := 0; i < *instances; i++ {
 		time.Sleep(time.Millisecond * 100)
-		go listener.StartListener(playlistURL, 1, logger)
+		go listener.StartListener(playlistURL, *buffer, logger, httpClient)
 	}
 
 	c := make(chan os.Signal)
@@ -51,7 +70,7 @@ func main() {
 }
 
 func (l Logger) SuccessfullyDownloaded(message listener.SuccessMessage) {
-	if !*quiet {
+	if !l.quiet {
 		fmt.Printf("%-4d ms %s %s\n", message.Duration.Milliseconds(), message.Time.Format(time.RFC3339), message.URL)
 	}
 }

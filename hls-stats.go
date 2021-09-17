@@ -12,9 +12,7 @@ import (
 	"github.com/grafov/m3u8"
 )
 
-var client = &http.Client{
-	Timeout: time.Second * 3,
-}
+var client http.Client
 var logger Logger
 
 type Logger interface {
@@ -45,8 +43,9 @@ type PlaybackError struct {
 	Message        string
 }
 
-func StartListener(playlistUrlString string, bufferSegments int, l Logger) {
+func StartListener(playlistUrlString string, bufferSegments int, l Logger, httpClient *http.Client) {
 	logger = l
+	client = *httpClient
 	startStreamingPlaylist(playlistUrlString, bufferSegments)
 }
 
