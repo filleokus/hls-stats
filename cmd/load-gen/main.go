@@ -23,6 +23,7 @@ func main() {
 	instances := flag.Int("instances", 10, "Number of paralell clients")
 	buffer := flag.Int("buffer", 1, "Number of segments away from live edge to start playback")
 	proxyURLString := flag.String("proxy", "", "HTTP(S) proxy [http://URL:port]")
+	userAgentString := flag.String("useragent", "hls-stats-0.01", "Provide custom value for User-Agent header")
 	flag.Parse()
 
 	playlistURL := flag.Arg(0)
@@ -52,9 +53,11 @@ func main() {
 	}
 
 	fmt.Printf("Starting %d session(s)\n", *instances)
+	fmt.Printf("Starting %d session(s) with User-Agent %s \n", *instances, *userAgentString)
 	for i := 0; i < *instances; i++ {
 		time.Sleep(time.Millisecond * 100)
 		go listener.StartListener(playlistURL, *buffer, logger, httpClient)
+		go listener.StartListener(playlistURL, *buffer, logger, httpClient, *userAgentString)
 	}
 
 	c := make(chan os.Signal)
