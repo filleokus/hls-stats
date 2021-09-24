@@ -43,13 +43,13 @@ type PlaybackError struct {
 	Message        string
 }
 
-func StartListener(playlistUrlString string, bufferSegments int, l Logger, httpClient *http.Client) {
+func StartListener(playlistUrlString string, bufferSegments int, l Logger, httpClient *http.Client, userAgent string) {
 	logger = l
 	client = *httpClient
-	startStreamingPlaylist(playlistUrlString, bufferSegments)
+	startStreamingPlaylist(playlistUrlString, bufferSegments, userAgent)
 }
 
-func downloadURL(url string) (response *http.Response, didFailAndShouldRetry bool) {
+func downloadURL(url string, userAgent string) (response *http.Response, didFailAndShouldRetry bool) {
 	uuid, err := uuid.NewRandom()
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Could not make correlation ID: %s\n", err))
@@ -60,7 +60,7 @@ func downloadURL(url string) (response *http.Response, didFailAndShouldRetry boo
 		log.Fatal(fmt.Sprintf("Could not make request for %s: %s X-Correlation-ID-HLS-Stats: %s\n", url, err, uuid.String()))
 	}
 
-	req.Header.Set("User-Agent", "hls-stats-0.01")
+	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("X-Correlation-ID-HLS-Stats", uuid.String())
 
 	start := time.Now()
@@ -113,12 +113,12 @@ func downloadURL(url string) (response *http.Response, didFailAndShouldRetry boo
 
 }
 
-func startStreamingPlaylist(playlistUrl string, bufferSegments int) {
+func startStreamingPlaylist(playlistUrl string, bufferSegments int, userAgent string) {
 	// Download the playlist once, then the first segment, then enter
 	// the infinite loop to continously download the new playlist and
 	// segments
 
-	playlist, playlistFetchingFailed := fetchPlaylist(playlistUrl)
+	playlist, playlistFetchingFailed := fetchPlaylist(playlistUrl, userAgent)
 	if playlistFetchingFailed {
 		log.Fatalf("Could not fetch playlist %s, check if it's correct and try again", playlistUrl)
 	}
@@ -129,17 +129,17 @@ func startStreamingPlaylist(playlistUrl string, bufferSegments int) {
 
 	currentSequenceId := latestSegment.SeqId
 
-	fetchSegment(playlistUrl, playlist, &currentSequenceId)
+	fetchSegment(playlistUrl, playlist, &currentSequenceId, userAgent)
 	time.Sleep(targetDuration)
 
 	for {
-		playlist, playlistFetchingFailed = fetchPlaylist(playlistUrl)
+		playlist, playlistFetchingFailed = fetchPlaylist(playlistUrl, userAgent)
 		if playlistFetchingFailed {
 			time.Sleep(targetDuration)
 			break
 		}
 
-		segmentFetchingFailed := fetchSegment(playlistUrl, playlist, &currentSequenceId)
+		segmentFetchingFailed := fetchSegment(playlistUrl, playlist, &currentSequenceId, userAgent)
 		if segmentFetchingFailed {
 			time.Sleep(targetDuration)
 			break
@@ -150,22 +150,21 @@ func startStreamingPlaylist(playlistUrl string, bufferSegments int) {
 
 }
 
-func fetchPlaylist(playlistUrl string) (*m3u8.MediaPlaylist, bool) {
-	resp, didFail := downloadURL(playlistUrl)
+func fetchPlaylist(playlistUrl string, userAgent string) (*m3u8.MediaPlaylist, bool) {
+	resp, didFail := downloadURL(playlistUrl, userAgent)
 	if didFail {
 		return nil, true
 	}
 
 	defer resp.Body.Close()
-
 	playlist, _, err := m3u8.DecodeFrom(resp.Body, true)
 	if err != nil {
-		log.Fatalf("Could not decode provided m3u8 for %s: %s", playlistUrl, err)
+		log.Fatalf("Could not decode provided m3u8 for %s:\n%s\nIs the URL a variant playlist?", playlistUrl, err)
 	}
 	return playlist.(*m3u8.MediaPlaylist), false
 }
 
-func fetchSegment(playlistUrl string, playlist *m3u8.MediaPlaylist, sequenceId *uint64) (didFailAndShouldRetry bool) {
+func fetchSegment(playlistUrl string, playlist *m3u8.MediaPlaylist, sequenceId *uint64, userAgent string) (didFailAndShouldRetry bool) {
 	var segment *m3u8.MediaSegment
 	for _, s := range playlist.Segments {
 		if s == nil {
@@ -201,7 +200,7 @@ func fetchSegment(playlistUrl string, playlist *m3u8.MediaPlaylist, sequenceId *
 		components = append(components, segmentUrl)
 		segmentUrl = strings.Join(components, "/")
 	}
-	resp, didFail := downloadURL(segmentUrl)
+	resp, didFail := downloadURL(segmentUrl, userAgent)
 	if didFail {
 		return true
 	}
