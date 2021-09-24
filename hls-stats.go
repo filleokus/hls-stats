@@ -1,7 +1,11 @@
 package listener
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -24,9 +28,10 @@ type SuccessMessage struct {
 	CorrelationId uuid.UUID
 	Time          time.Time
 
-	URL  string
-	Host string
-	File string
+	URL   string
+	Host  string
+	File  string
+	Bytes int
 
 	Duration time.Duration
 }
@@ -61,6 +66,7 @@ func downloadURL(url string, userAgent string) (response *http.Response, didFail
 	}
 
 	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept-Encoding", "gzip")
 	req.Header.Set("X-Correlation-ID-HLS-Stats", uuid.String())
 
 	start := time.Now()
@@ -99,7 +105,23 @@ func downloadURL(url string, userAgent string) (response *http.Response, didFail
 		logger.ErrorWhileDownloading(playbackError)
 		return nil, true
 	}
-
+	var reader io.ReadCloser
+	var transferedBytes int
+	var body []byte
+	switch resp.Header.Get("Content-Encoding") {
+	case "gzip":
+		reader, _ = gzip.NewReader(resp.Body)
+		transferedBytes = int(resp.ContentLength)
+		body, _ = io.ReadAll(reader)
+		reader.Close()
+		resp.Header.Del("Content-Encoding")
+	default:
+		reader = resp.Body
+		body, _ = io.ReadAll(reader)
+		transferedBytes = len(body)
+		reader.Close()
+	}
+	resp.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 	message := SuccessMessage{
 		CorrelationId: uuid,
 		Time:          time.Now(),
@@ -107,6 +129,7 @@ func downloadURL(url string, userAgent string) (response *http.Response, didFail
 		Host:          host,
 		File:          file,
 		Duration:      elapsed,
+		Bytes:         transferedBytes,
 	}
 	logger.SuccessfullyDownloaded(message)
 	return resp, false
