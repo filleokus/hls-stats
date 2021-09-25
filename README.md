@@ -21,6 +21,8 @@ load-gen [options] [url]
   - HTTP(S) proxy [http://URL:port]
 - `quiet`
   - Do not print successful downloads
+- `useragent`
+  - Provide custom value for User-Agent header (default "hls-stats-0.02")
 
 ## `hls-stats`
 ### Config
