@@ -29,7 +29,7 @@ func main() {
 	instances := flag.Int("instances", 10, "Number of paralell clients")
 	buffer := flag.Int("buffer", 1, "Number of segments away from live edge to start playback")
 	proxyURLString := flag.String("proxy", "", "HTTP(S) proxy [http://URL:port]")
-	userAgentString := flag.String("useragent", "hls-stats-0.01", "Provide custom value for User-Agent header")
+	userAgentString := flag.String("useragent", "hls-stats-0.02", "Provide custom value for User-Agent header")
 	flag.Parse()
 
 	playlistURL := flag.Arg(0)
